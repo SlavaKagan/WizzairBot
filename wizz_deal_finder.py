@@ -100,12 +100,14 @@ def get_tlv_destinations(api_ver: str) -> list[dict]:
 
 
 def get_timetable_fares(api_ver: str, dest: str, date_from: dt.date, date_to: dt.date) -> list[dict]:
-    """Query the monthly timetable endpoint: returns cheapest fare per day."""
+    """Query the monthly timetable endpoint: returns cheapest fare per day.
+
+    Wizzair's anti-bot sets a cookie on the first timetable response; replaying it
+    on the next request is rejected with 400 {"handlerError":"InvalidProtocol"}.
+    From datacenter IPs (e.g. GitHub Actions) the throttling is stricter, so we
+    give every request its own short-lived, cookie-free session and retry a few
+    times with backoff before giving up on a route."""
     url = f"{WIZZ_ROOT}/{api_ver}/Api/search/timetable"
-    # Wizzair sets an anti-bot cookie on the first timetable response; replaying
-    # it on the next request is rejected with 400 {"handlerError":"InvalidProtocol"}.
-    # Start each request cookie-free so every route is queried like the first one.
-    session.cookies.clear()
     body = {
         "flightList": [
             {
@@ -120,11 +122,23 @@ def get_timetable_fares(api_ver: str, dest: str, date_from: dt.date, date_to: dt
         "childCount": 0,
         "infantCount": 0,
     }
-    r = session.post(url, json=body, timeout=30)
-    if r.status_code == 404:
-        raise RuntimeError("API version outdated (404)")
-    r.raise_for_status()
-    return r.json().get("outboundFlights", [])
+    last_exc: Exception | None = None
+    for attempt in range(3):
+        try:
+            with requests.Session() as s:
+                s.headers.update(HEADERS)
+                r = s.post(url, json=body, timeout=30)
+            if r.status_code == 404:
+                raise RuntimeError("API version outdated (404)")
+            r.raise_for_status()
+            return r.json().get("outboundFlights", [])
+        except RuntimeError:
+            raise  # version problem — retrying won't help
+        except requests.RequestException as e:
+            last_exc = e
+            if attempt < 2:
+                time.sleep(1.0 * (attempt + 1))  # 1s, then 2s backoff
+    raise last_exc  # exhausted retries
 
 
 def get_ils_to_eur_rate() -> float:
@@ -258,6 +272,8 @@ def main() -> int:
 
     deals, errors = find_deals()
     print(f"Found {len(deals)} deals under €{MAX_PRICE_EUR:.0f}; {len(errors)} errors")
+    for e in errors[:8]:  # surface a sample so failures are visible in CI logs
+        print(f"  err: {e}")
 
     if deals or ALWAYS_EMAIL:
         subject = (
