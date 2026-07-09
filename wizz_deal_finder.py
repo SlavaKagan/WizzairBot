@@ -102,6 +102,10 @@ def get_tlv_destinations(api_ver: str) -> list[dict]:
 def get_timetable_fares(api_ver: str, dest: str, date_from: dt.date, date_to: dt.date) -> list[dict]:
     """Query the monthly timetable endpoint: returns cheapest fare per day."""
     url = f"{WIZZ_ROOT}/{api_ver}/Api/search/timetable"
+    # Wizzair sets an anti-bot cookie on the first timetable response; replaying
+    # it on the next request is rejected with 400 {"handlerError":"InvalidProtocol"}.
+    # Start each request cookie-free so every route is queried like the first one.
+    session.cookies.clear()
     body = {
         "flightList": [
             {

@@ -3,7 +3,12 @@ name: Wizzair Deal Check
 on:
   schedule:
     - cron: "*/30 * * * *"   # every 30 minutes (UTC; GitHub may delay a few min)
-  workflow_dispatch: {}       # allows manual "Run workflow" button for testing
+  workflow_dispatch:          # allows manual "Run workflow" button for testing
+    inputs:
+      always_email:
+        description: "Send a report email even if no deals are found (test the email path)"
+        type: boolean
+        default: false
 
 jobs:
   check:
@@ -25,5 +30,6 @@ jobs:
           REPORT_EMAIL: slavamerch92@gmail.com
           MAX_PRICE_EUR: "30"
           SEARCH_MONTHS: "12"
-          # ALWAYS_EMAIL: "1"   # uncomment to get an email every 30 min even with no deals
+          # "1" only when manually triggered with the always_email box checked; "0" for scheduled runs
+          ALWAYS_EMAIL: ${{ inputs.always_email && '1' || '0' }}
         run: python wizz_deal_finder.py
