@@ -1,0 +1,29 @@
+name: Wizzair Deal Check
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"   # every 30 minutes (UTC; GitHub may delay a few min)
+  workflow_dispatch: {}       # allows manual "Run workflow" button for testing
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install requests
+
+      - name: Run deal finder
+        env:
+          GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          REPORT_EMAIL: slavamerch92@gmail.com
+          MAX_PRICE_EUR: "30"
+          SEARCH_MONTHS: "12"
+          # ALWAYS_EMAIL: "1"   # uncomment to get an email every 30 min even with no deals
+        run: python wizz_deal_finder.py
