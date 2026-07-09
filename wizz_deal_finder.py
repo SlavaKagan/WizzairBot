@@ -123,22 +123,30 @@ def get_timetable_fares(api_ver: str, dest: str, date_from: dt.date, date_to: dt
         "infantCount": 0,
     }
     last_exc: Exception | None = None
-    for attempt in range(3):
+    for attempt in range(4):
         try:
             with requests.Session() as s:
                 s.headers.update(HEADERS)
                 r = s.post(url, json=body, timeout=30)
             if r.status_code == 404:
                 raise RuntimeError("API version outdated (404)")
+            if r.status_code in (429, 503) and attempt < 3:
+                # Datacenter IPs (e.g. GitHub Actions) get throttled after a burst.
+                # Honor Retry-After if sent, else back off hard: 4s, 8s, 16s.
+                wait = float(r.headers.get("Retry-After") or 0) or 4 * 2 ** attempt
+                time.sleep(min(wait, 30))
+                continue
             r.raise_for_status()
             return r.json().get("outboundFlights", [])
         except RuntimeError:
             raise  # version problem — retrying won't help
         except requests.RequestException as e:
             last_exc = e
-            if attempt < 2:
-                time.sleep(1.0 * (attempt + 1))  # 1s, then 2s backoff
-    raise last_exc  # exhausted retries
+            if attempt < 3:
+                time.sleep(2.0 * (attempt + 1))  # 2s, 4s, 6s backoff
+    if last_exc:
+        raise last_exc
+    raise RuntimeError("throttled (429/503) after retries")
 
 
 def get_ils_to_eur_rate() -> float:
