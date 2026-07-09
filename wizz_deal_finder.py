@@ -20,6 +20,7 @@ Optional:
 """
 
 import os
+import re
 import sys
 import json
 import time
@@ -60,22 +61,22 @@ session.headers.update(HEADERS)
 # ------------------------------------------------------------- wizz api ----
 def get_api_version() -> str:
     """Wizzair's API base path includes a build version that changes often.
-    Try the metadata endpoint first, then fall back to scraping the site."""
-    try:
-        r = session.get("https://wizzair.com/buildnumber", timeout=20)
-        if r.ok:
-            # response looks like: "https://be.wizzair.com/27.6.0 (build ...)"
-            text = r.text
-            marker = "be.wizzair.com/"
-            if marker in text:
-                ver = text.split(marker, 1)[1].split()[0].strip().strip('"/')
-                if ver:
-                    return ver
-    except requests.RequestException:
-        pass
+    Scrape it from the site (the /buildnumber endpoint no longer returns a
+    plain version — it serves the app HTML), then fall back to a known-good
+    recent version. The app HTML embeds the current path as
+    "be.wizzair.com/<major>.<minor>.<patch>", so match that."""
+    for url in ("https://wizzair.com/buildnumber", "https://wizzair.com/en-gb"):
+        try:
+            r = session.get(url, timeout=20)
+            if r.ok:
+                m = re.search(r"be\.wizzair\.com/(\d+\.\d+\.\d+)", r.text)
+                if m:
+                    return m.group(1)
+        except requests.RequestException:
+            pass
 
     # Fallback: known-good recent version (update if requests start 404ing)
-    return "27.6.0"
+    return "29.5.0"
 
 
 def get_tlv_destinations(api_ver: str) -> list[dict]:
@@ -94,7 +95,7 @@ def get_tlv_destinations(api_ver: str) -> list[dict]:
     for conn in tlv.get("connections", []):
         iata = conn.get("iata")
         city = by_iata.get(iata, {})
-        dests.append({"iata": iata, "name": city.get("shortName", iata)})
+        dests.append({"iata": iata, "name": city.get("shortName", iata).strip()})
     return dests
 
 
