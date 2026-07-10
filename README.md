@@ -36,7 +36,9 @@ gh secret set GMAIL_APP_PASSWORD --body "xxxx xxxx xxxx xxxx"
 
 ### 4. Test it
 
-Actions tab → "Wizzair Deal Check" → **Run workflow**. Check the logs and your inbox.
+Actions tab → "Wizzair Deal Check" → **Run workflow**. Tick **"Send a report email
+even if no deals are found"** to force a test email so you can confirm the Gmail
+credentials work, then check the logs and your inbox.
 That's it — it now runs automatically every 30 minutes.
 
 ## Configuration
@@ -62,11 +64,19 @@ python wizz_deal_finder.py
 ## Known limitations
 
 - Uses Wizzair's **unofficial** backend API (the same one their website calls).
-  It can change or temporarily block automated requests. The script auto-detects
-  the API version, but if runs start failing with 404s, check the logs and update
-  the fallback version in `get_api_version()`.
-- Fares from TLV are returned in ILS — converted to EUR with a live rate
-  (frankfurter.app) before filtering.
+  It can change or temporarily block automated requests. The script scrapes the
+  current API version live from the site (with a hard-coded fallback in
+  `get_api_version()`); if runs start failing with 404s, update that fallback.
+- Wizzair sets an anti-bot cookie on each fare response, so every request uses a
+  fresh, cookie-free session (replaying the cookie returns
+  `400 InvalidProtocol`).
+- **Datacenter IPs get throttled.** From GitHub Actions, Wizzair returns `503`
+  under load; the script retries with backoff, but a few routes may still be
+  skipped on a busy run (logged, not fatal). It runs cleanest from a residential
+  IP — if you want 100% coverage, run it locally on a schedule (Task Scheduler)
+  instead of GitHub Actions.
+- Fares are returned already in EUR for TLV; if a route ever prices in ILS it is
+  converted with a live rate (frankfurter.app) before filtering.
 - Timetable prices are "cheapest of the day" cached values; always verify on the
   booking page (each row in the email links directly to it).
 - GitHub Actions cron isn't exact — runs may drift a few minutes.
