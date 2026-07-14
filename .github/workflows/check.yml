@@ -2,7 +2,12 @@ name: Wizzair Deal Check
 
 on:
   schedule:
-    - cron: "*/30 * * * *"   # every 30 minutes (UTC; GitHub may delay a few min)
+    # Once a day at 22:00 Israel time, year-round. Cron is UTC with no DST, and
+    # Israel is UTC+3 in summer (IDT) / UTC+2 in winter (IST), so we fire at both
+    # 19:00 and 20:00 UTC; the "Run deal finder" step runs only the one that is
+    # actually 22:00 in Israel and skips the other.
+    - cron: "0 19 * * *"   # 22:00 Israel during IDT (summer)
+    - cron: "0 20 * * *"   # 22:00 Israel during IST (winter)
   workflow_dispatch:          # allows manual "Run workflow" button for testing
     inputs:
       always_email:
@@ -28,8 +33,15 @@ jobs:
           GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           REPORT_EMAIL: slavamerch92@gmail.com
-          MAX_PRICE_EUR: "30"
+          MAX_PRICE_EUR: "50"
           SEARCH_MONTHS: "12"
           # "1" only when manually triggered with the always_email box checked; "0" for scheduled runs
           ALWAYS_EMAIL: ${{ inputs.always_email && '1' || '0' }}
-        run: python wizz_deal_finder.py
+        run: |
+          # Scheduled runs fire at two UTC times; only proceed at 22:00 Israel time.
+          # Manual (workflow_dispatch) runs always proceed.
+          if [ "${{ github.event_name }}" = "schedule" ] && [ "$(TZ=Asia/Jerusalem date +%H)" != "22" ]; then
+            echo "Skipping: it's $(TZ=Asia/Jerusalem date +%H):00 in Israel, not 22:00."
+            exit 0
+          fi
+          python wizz_deal_finder.py

@@ -1,8 +1,8 @@
 # Wizzair Deal Agent ✈️
 
-Checks every 30 minutes for Wizzair one-way flights from **Tel Aviv (TLV)** to
-**anywhere**, on **any date in the next 12 months**, priced **under €30**, and
-emails a report to `slavamerch92@gmail.com` when deals are found.
+Checks once a day at **22:00 Israel time** for Wizzair one-way flights from
+**Tel Aviv (TLV)** to **anywhere**, on **any date in the next 12 months**, priced
+**under €50**, and emails a report to `slavamerch92@gmail.com` when deals are found.
 
 Runs for free on GitHub Actions — no server needed.
 
@@ -39,7 +39,7 @@ gh secret set GMAIL_APP_PASSWORD --body "xxxx xxxx xxxx xxxx"
 Actions tab → "Wizzair Deal Check" → **Run workflow**. Tick **"Send a report email
 even if no deals are found"** to force a test email so you can confirm the Gmail
 credentials work, then check the logs and your inbox.
-That's it — it now runs automatically every 30 minutes.
+That's it — it now runs automatically once a day at 22:00 Israel time.
 
 ## Configuration
 
@@ -47,7 +47,7 @@ Edit env vars in `.github/workflows/check.yml`:
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `MAX_PRICE_EUR` | 30 | price threshold |
+| `MAX_PRICE_EUR` | 50 | price threshold |
 | `SEARCH_MONTHS` | 12 | how far ahead to scan |
 | `ALWAYS_EMAIL` | off | email even when nothing found |
 | `REPORT_EMAIL` | slavamerch92@gmail.com | recipient |

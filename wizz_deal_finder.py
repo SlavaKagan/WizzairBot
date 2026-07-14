@@ -5,8 +5,8 @@ Checks all Wizzair routes departing Tel Aviv (TLV) for one-way fares
 under MAX_PRICE_EUR in the next SEARCH_MONTHS months, and emails a
 report when deals are found.
 
-Designed to run on GitHub Actions every 30 minutes (see .github/workflows/check.yml),
-but works anywhere: python wizz_deal_finder.py
+Designed to run on GitHub Actions once a day at 22:00 Israel time
+(see .github/workflows/check.yml), but works anywhere: python wizz_deal_finder.py
 
 Required environment variables:
     GMAIL_ADDRESS       - your Gmail address (sender)
@@ -14,7 +14,7 @@ Required environment variables:
     REPORT_EMAIL        - recipient (default: slavamerch92@gmail.com)
 
 Optional:
-    MAX_PRICE_EUR       - default 30
+    MAX_PRICE_EUR       - default 50
     SEARCH_MONTHS       - how many months ahead to scan (default 4)
     ALWAYS_EMAIL        - "1" to email even when no deals found (default: only on deals)
 """
@@ -33,7 +33,7 @@ import requests
 
 # ---------------------------------------------------------------- config ----
 ORIGIN = "TLV"
-MAX_PRICE_EUR = float(os.environ.get("MAX_PRICE_EUR", "30"))
+MAX_PRICE_EUR = float(os.environ.get("MAX_PRICE_EUR", "50"))
 SEARCH_MONTHS = int(os.environ.get("SEARCH_MONTHS", "12"))
 ALWAYS_EMAIL = os.environ.get("ALWAYS_EMAIL", "0") == "1"
 
